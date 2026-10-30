@@ -12,6 +12,7 @@
     "frappe": "e8d41dd0061a32ee781caefe5d0b0d2bb7c15362",
     "erpnext": "ade850bbd6a7412e9994a9637d2c5c713771632a"
   },
+  "versions": {"frappe": "16.53.0", "erpnext": "16.52.1"},
   "runtime": {"python": "3.14.8", "node_major": 24},
   "ports": {"web": 18081, "realtime": 19001}
 }

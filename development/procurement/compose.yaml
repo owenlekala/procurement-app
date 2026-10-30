@@ -10,16 +10,26 @@ x-bench: &bench
       target: /home/frappe/dev
       volume:
         nocopy: true
+    - type: volume
+      source: uv-cache
+      target: /home/frappe/.cache/uv
+      volume:
+        nocopy: true
     - ../../../frappe:/source/frappe:ro
     - ../../../erpnext:/source/erpnext:ro
     - ../..:/source/tag_procurement
     - ./runtime.lock.json:/runtime/runtime.lock.json:ro
     - ./bootstrap.py:/runtime/bootstrap.py:ro
     - ./verify.py:/runtime/verify.py:ro
+    - ./queue_probe.py:/runtime/queue_probe.py:ro
   tmpfs:
     - /source/tag_procurement/development/procurement/.local:ro,noexec,nosuid,size=64k,mode=000
   environment:
     PYTHONUNBUFFERED: "1"
+    UV_HTTP_RETRIES: "12"
+    UV_HTTP_TIMEOUT: "120"
+    PYTHONDONTWRITEBYTECODE: "1"
+    PYTHONPATH: /runtime
   restart: "no"
 
 services:
@@ -64,11 +74,27 @@ services:
       timeout: 3s
       retries: 12
 
+  scanner-fake:
+    image: ${BENCH_IMAGE:?Run runtime.py to load pinned image digests}
+    platform: linux/amd64
+    init: true
+    entrypoint: []
+    command: [python, /runtime/scanner_fake.py]
+    volumes:
+      - ./scanner_fake.py:/runtime/scanner_fake.py:ro
+    healthcheck:
+      test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8765/healthz', timeout=2).read()"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 3s
+
   volume-init:
     <<: *bench
+    working_dir: /home/frappe/dev
     user: root
     entrypoint: [/bin/sh, -c]
-    command: ['mkdir -p /home/frappe/dev && chown "$$(id -u frappe):$$(id -g frappe)" /home/frappe/dev && stat -c "%u %g %a %n" /home/frappe/dev']
+    command: ['mkdir -p /home/frappe/dev /home/frappe/.cache/uv && if [ -d /home/frappe/dev/frappe-bench ] && [ -z "$$(find /home/frappe/dev/frappe-bench -mindepth 1 -maxdepth 1 -print -quit)" ]; then rmdir /home/frappe/dev/frappe-bench; fi && chown "$$(id -u frappe):$$(id -g frappe)" /home/frappe/dev && chown -R "$$(id -u frappe):$$(id -g frappe)" /home/frappe/.cache/uv && stat -c "%u %g %a %n" /home/frappe/dev /home/frappe/.cache/uv']
 
   bootstrap:
     <<: *bench
@@ -114,3 +140,4 @@ volumes:
   bench-data:
   db-data:
   queue-data:
+  uv-cache:

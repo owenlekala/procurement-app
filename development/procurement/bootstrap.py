@@ -66,6 +66,8 @@ def main():
 		raise RuntimeError("Node major version does not match runtime lock")
 	for name in LOCK["sources"]:
 		verify_source(name)
+	if BENCH.exists() and not any(BENCH.iterdir()):
+		BENCH.rmdir()
 	if not BENCH.exists():
 		run(
 			"Initialise pinned Frappe Bench",
@@ -79,6 +81,13 @@ def main():
 		raise RuntimeError("Bench is incomplete; inspect existing volume before retrying")
 	if revision(BENCH / "apps/frappe") != LOCK["sources"]["frappe"]:
 		raise RuntimeError("Bench Frappe revision does not match runtime lock")
+	run(
+		"Ensure pinned Frappe package and dependencies are installed",
+		[
+			"uv", "pip", "install", "--quiet", "-e", str(BENCH / "apps/frappe"),
+			"--python", str(BENCH / "env/bin/python"),
+		],
+	)
 	if not (BENCH / "apps/erpnext").exists():
 		run("Install locked ERPNext source", ["bench", "get-app", "--skip-assets", "erpnext", "/source/erpnext"])
 	if revision(BENCH / "apps/erpnext") != LOCK["sources"]["erpnext"]:
@@ -89,11 +98,17 @@ def main():
 	run("Refresh editable procurement package", ["uv", "pip", "install", "--quiet", "--no-deps", "-e", str(app), "--python", str(BENCH / "env/bin/python")])
 	common = BENCH / "sites/common_site_config.json"
 	config = json.loads(common.read_text()) if common.exists() else {}
+	workers = dict(config.get("workers", {}))
+	workers.update({
+		"procurement": {"timeout": 300, "background_workers": 1},
+		"procurement_io": {"timeout": 300, "background_workers": 1},
+	})
 	config.update({
 		"db_host": "mariadb", "db_port": 3306,
 		"redis_cache": "redis://redis-cache:6379", "redis_queue": "redis://redis-queue:6379",
 		"redis_socketio": "redis://redis-queue:6379", "webserver_host": "web", "webserver_port": 8000,
-		"socketio_port": LOCK["ports"]["realtime"], "default_site": SITE,
+		"socketio_port": LOCK["ports"]["realtime"], "default_site": SITE, "scheduler_tick_interval": 15,
+		"workers": workers,
 	})
 	common.write_text(json.dumps(config, indent=1, sort_keys=True) + "\n")
 	if not (BENCH / "sites" / SITE).is_dir():

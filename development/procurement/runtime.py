@@ -27,23 +27,54 @@ def prepare_secrets():
 
 
 def compose(*args):
+	return subprocess.run(compose_command(*args), cwd=ROOT, env=compose_env(), check=True)
+
+
+def compose_env():
 	env = dict(os.environ, **LOCK["images"])
 	env["WEB_PORT"] = str(LOCK["ports"]["web"])
 	env["REALTIME_PORT"] = str(LOCK["ports"]["realtime"])
-	return subprocess.run(
-		[
-			"docker",
-			"compose",
-			"--project-name",
-			LOCK["project"],
-			"--file",
-			str(ROOT / "compose.yaml"),
-			*args,
-		],
+	return env
+
+
+def compose_command(*args):
+	return [
+		"docker",
+		"compose",
+		"--project-name",
+		LOCK["project"],
+		"--file",
+		str(ROOT / "compose.yaml"),
+		*args,
+	]
+
+
+def verify():
+	result = subprocess.run(
+		compose_command("ps", "--status", "running", "--services"),
 		cwd=ROOT,
-		env=env,
+		env=compose_env(),
 		check=True,
+		capture_output=True,
+		text=True,
 	)
+	active = set(result.stdout.split())
+	expected = {
+		"mariadb",
+		"redis-cache",
+		"redis-queue",
+		"scanner-fake",
+		"web",
+		"realtime",
+		"scheduler",
+		"worker",
+		"procurement-worker",
+		"procurement-io-worker",
+	}
+	missing = expected - active
+	if missing:
+		raise RuntimeError("Required disposable services are not running: " + ", ".join(sorted(missing)))
+	compose("exec", "-T", "web", "env/bin/python", "/runtime/verify.py")
 
 
 def main():
@@ -54,14 +85,15 @@ def main():
 	if action == "config":
 		compose("config", "--quiet")
 	elif action == "up":
-		compose("up", "-d", "--wait", "mariadb", "redis-cache", "redis-queue")
+		compose("up", "-d", "--wait", "mariadb", "redis-cache", "redis-queue", "scanner-fake")
 		compose("run", "--rm", "volume-init")
 		compose("run", "--rm", "bootstrap")
-		compose("up", "-d", "web", "realtime", "scheduler", "worker", "procurement-worker", "procurement-io-worker")
+		compose("up", "-d", "--wait", "web", "realtime", "scheduler", "worker", "procurement-worker", "procurement-io-worker")
+		verify()
 	elif action == "bootstrap":
 		compose("run", "--rm", "bootstrap")
 	elif action == "verify":
-		compose("exec", "-T", "web", "env/bin/python", "/runtime/verify.py")
+		verify()
 	elif action == "status":
 		compose("ps", "--all")
 	elif action == "stop":
