@@ -38,7 +38,7 @@
 
 ## PROC-P0-003
 
-- [ ] **Create app repository and instruction bridge**
+- [x] **Create app repository and instruction bridge**
 
 **Depends on:** `PROC-P0-001`
 
@@ -51,6 +51,8 @@
 **Failure cases and verification:** Verify ownership, repeatable installation and source-link validation after any documentation move; leave no editable second handbook.
 
 **Completion evidence:** Repository commit, app inventory, instruction bridge and structural-check result.
+
+**Execution evidence (2026-10-30):** Created the independent `tag_procurement` Git repository at commit `295921a` with app packaging metadata, the Frappe module package, the app-level `AGENTS.md` bridge and the handbook as its only canonical copy. Built `tag_procurement-0.1.0-py3-none-any.whl` (SHA-256 `993aa63dc27d249c5ada3af2cbfba2c17b9197983299e97af188d06460bd990a`) using Python 3.14.8 and the pinned `frappe/bench` image; source was mounted read-only. `python3 tag_procurement/docs/procurement/validate_docs.py --self-test` passed with 82 Markdown files, 865 local links, 27 source references, all 30 requirement/acceptance mappings, all 40 tasks and all nine negative self-tests. This establishes package metadata and handbook ownership; it does not qualify site installation or app runtime behaviour.
 
 ## PROC-P0-004
 
