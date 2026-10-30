@@ -1,0 +1,39 @@
+[project]
+name = "tag_procurement"
+authors = [{ name = "TAG Projects" }]
+description = "Procurement management and vendor tender portal for ERPNext"
+requires-python = ">=3.14,<3.15"
+readme = "README.md"
+dynamic = ["version"]
+dependencies = []
+
+[build-system]
+requires = ["flit_core >=3.4,<4"]
+build-backend = "flit_core.buildapi"
+
+[tool.bench.frappe-dependencies]
+frappe = ">=16.53.0,<17.0.0"
+erpnext = ">=16.52.1,<17.0.0"
+
+[tool.ruff]
+line-length = 110
+target-version = "py314"
+
+[tool.ruff.lint]
+select = ["F", "E", "W", "I", "UP", "B", "RUF"]
+ignore = ["E501", "F401"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "tab"
+
+[tool.mypy]
+python_version = "3.14"
+files = ["tag_procurement"]
+follow_imports = "silent"
+ignore_missing_imports = true
+check_untyped_defs = true
+
+[tool.pytest.ini_options]
+testpaths = ["tag_procurement/tests"]
+python_files = ["test_*.py"]
